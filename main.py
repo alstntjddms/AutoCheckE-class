@@ -3,9 +3,11 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from time import sleep
 from dotenv import load_dotenv
-from datetime import datetime
 import sys
 import requests
+import urllib.request
+import urllib.request as req
+
 
 from selenium.webdriver.common.alert import Alert
 from bs4 import BeautifulSoup
@@ -29,7 +31,7 @@ def QtSleep(t):
     QTimer.singleShot(1000*t, loop.quit)  # msec
     loop.exec_()
 
- # 강의목록
+ # bs4 강의목록
 def prof_class_list(ID, PW):
     # 세션설정
     load_dotenv()
@@ -74,6 +76,7 @@ def prof_class_list(ID, PW):
 
     return clist, hlist
 
+ # seleminum 강의 재생
 def learn_class(ID, PW, WEEK, CLASS, VIDEO, PERFORMANCE, hlist, txt):
 
     txt.append("홈페이지 로그인 시도!")
@@ -168,7 +171,7 @@ def learn_class(ID, PW, WEEK, CLASS, VIDEO, PERFORMANCE, hlist, txt):
             txt.append("{}번 강의, {}번 동영상 재생중". format(hlistnum, vlistnum))
             txt.append("{}초 후 다음 강의 실행". format(runningtime))
 
-            QtSleep(runningtime / 100)
+            QtSleep(runningtime + 3)
 
             vlistnum += 1
             driver.back()
@@ -186,7 +189,26 @@ def learn_class(ID, PW, WEEK, CLASS, VIDEO, PERFORMANCE, hlist, txt):
     txt.append("")
     txt.append("출석체크 완료")
 
+def load_version():
 
+    url = 'https://medium.com/@1694072/%ED%85%8C%EC%8A%A4%ED%8A%B8-153168ef754f'
+    response = requests.get(url)
+    html = response.text
+    soup = BeautifulSoup(html, 'html.parser')
+    v = soup.find(id="6d67" ).text
+
+    return v
+
+def load_text():
+
+    url = 'https://medium.com/@1694072/%ED%85%8C%EC%8A%A4%ED%8A%B8-153168ef754f'
+    response = requests.get(url)
+    html = response.text
+    soup = BeautifulSoup(html, 'html.parser')
+    t1 = soup.find(id="94cf" ).text
+    t2 = soup.find(id="86a1" ).text
+
+    return t1, t2
 
 class MyApp(QWidget):
 
@@ -228,13 +250,11 @@ class MyApp(QWidget):
         # 로그인
         self.ID = QLineEdit(self)
         self.ID.setValidator(QIntValidator())
-        self.ID.setText("1694072")
 
         self.ID.move(560, 60)
 
         self.PW = QLineEdit(self)
         self.PW.move(560, 100)
-        self.PW.setText("Alstn3599@@")
 
         # 비밀번호는 안보이게
         self.PW.setEchoMode(QLineEdit.Password)
@@ -294,14 +314,16 @@ class MyApp(QWidget):
         self.label8.setText("대기시간설정(1~3)")
         self.label8.setFont(QFont("D2Coding", 10, QFont.Black))
 
+        # 하단 텍스트
+        t1, t2 = load_text()
         self.label9 = QLabel(self)
         self.label9.move(5, 385)
-        self.label9.setText("텍스트 테스트중 테스트 테스트")
+        self.label9.setText(t1)
         self.label9.setFont(QFont("D2Coding", 10, QFont.Medium))
 
         self.label10 = QLabel(self)
         self.label10.move(5, 400)
-        self.label10.setText("텍스트 테스트중 테스트테테테테테테ㅔ테테테테ㅔ테테테테")
+        self.label10.setText(t2)
         self.label10.setFont(QFont("D2Coding", 10, QFont.Medium))
 
         # 콘솔창 출력
@@ -320,6 +342,7 @@ class MyApp(QWidget):
     # 텍스트콘솔추가
     #def textedit(self, consol):
     #    self.text.append(consol)
+
 
     # 로그인버튼이벤트리스너
     def login_button_event(self):
@@ -343,8 +366,7 @@ class MyApp(QWidget):
 
     # 실행버튼이벤트리스너
     def play_button_event(self):
-        ID, PW, WEEK, CLASS, VIDEO, PERFORMANCE, hlist, txt = self.ID.text(), self.PW.text(), self.WEEK.text(), int(self.CLASS.text()), int(self.VIDEO.text()), float(self.PERFORMANCE.text()), self.hlist, self.txt
-        learn_class( ID, PW, WEEK, CLASS, VIDEO, PERFORMANCE, hlist, txt)
+        learn_class(self.ID.text(), self.PW.text(), self.WEEK.text(), int(self.CLASS.text()), int(self.VIDEO.text()), float(self.PERFORMANCE.text()), self.hlist, self.txt)
 
     # 콘솔창 입력
     def append_text(self):
