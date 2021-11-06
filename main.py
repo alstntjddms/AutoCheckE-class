@@ -5,13 +5,8 @@ from time import sleep
 from dotenv import load_dotenv
 import sys
 import requests
-import urllib.request
-import urllib.request as req
-
-
 from selenium.webdriver.common.alert import Alert
 from bs4 import BeautifulSoup
-
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
@@ -77,13 +72,24 @@ def prof_class_list(ID, PW):
     return clist, hlist
 
  # seleminum 강의 재생
-def learn_class(ID, PW, WEEK, CLASS, VIDEO, PERFORMANCE, hlist, txt):
+def learn_class(ID, PW, WEEK, CLASS, VIDEO, PERFORMANCE, hlist, txt, mute, browser):
 
     txt.append("홈페이지 로그인 시도!")
     txt.append("")
     txt.append("============실행목록============")
 
-    driver = webdriver.Chrome()
+    options = webdriver.ChromeOptions()
+
+    print(mute, browser)
+    # 체크박스 옵션설정
+    if mute == True:
+        options.add_argument('--mute-audio')
+    if browser == True:
+        options.add_argument('incognito')
+
+    driver = webdriver.Chrome(chrome_options=options)
+
+    print("xx3")
 
     driver.get("http://learn.hansung.ac.kr/")
 
@@ -110,9 +116,7 @@ def learn_class(ID, PW, WEEK, CLASS, VIDEO, PERFORMANCE, hlist, txt):
         #수업별로들어가기
 
         driver.get(hlist[hlistnum])
-
         html = driver.page_source
-
         soup = BeautifulSoup(html, 'html.parser')
 
         obj = soup.find('li', id = 'section-' + WEEK)
@@ -171,7 +175,7 @@ def learn_class(ID, PW, WEEK, CLASS, VIDEO, PERFORMANCE, hlist, txt):
             txt.append("{}번 강의, {}번 동영상 재생중". format(hlistnum, vlistnum))
             txt.append("{}초 후 다음 강의 실행". format(runningtime))
 
-            QtSleep(runningtime + 3)
+            QtSleep(runningtime / 1000)
 
             vlistnum += 1
             driver.back()
@@ -188,17 +192,24 @@ def learn_class(ID, PW, WEEK, CLASS, VIDEO, PERFORMANCE, hlist, txt):
     txt.append("================================")
     txt.append("")
     txt.append("출석체크 완료")
+    driver.quit()
 
+# 서버에서 버전 로드
 def load_version():
 
     url = 'https://medium.com/@1694072/%ED%85%8C%EC%8A%A4%ED%8A%B8-153168ef754f'
     response = requests.get(url)
     html = response.text
     soup = BeautifulSoup(html, 'html.parser')
-    v = soup.find(id="6d67" ).text
+    oldv = soup.find(id="6d67" ).text
+    newv = soup.find(id="3e57" ).text
 
-    return v
+    if float(oldv) < float(newv):
+        return True
+    else:
+        return False
 
+# 서버에서 공지사항 로드
 def load_text():
 
     url = 'https://medium.com/@1694072/%ED%85%8C%EC%8A%A4%ED%8A%B8-153168ef754f'
@@ -210,8 +221,20 @@ def load_text():
 
     return t1, t2
 
+# 서버에서 KEY로드
+def load_key():
+
+    url = 'https://medium.com/@1694072/%ED%85%8C%EC%8A%A4%ED%8A%B8-153168ef754f'
+    response = requests.get(url)
+    html = response.text
+    soup = BeautifulSoup(html, 'html.parser')
+    key = soup.find(id="82cb" ).text
+
+    return key
+
 class MyApp(QWidget):
 
+    # 생성자
     def __init__(self):
         super().__init__()
 
@@ -221,29 +244,32 @@ class MyApp(QWidget):
         # 창 전체
         self.setWindowTitle('Icon')
         self.setWindowIcon(QIcon('hansung.ico'))
-        self.setWindowTitle('출석체크 플레이어')
+        self.setWindowTitle('출석체크 플레이어 2.0')
         self.setFixedSize(720, 420)
         self.center()
 
         # UI불러오기
         self.initUI()
 
+        if load_version() == True:
+            QMessageBox.about(self, "VERSION 2.0", "새로운 버전 확인!\n새로운 버전을 받아주세요")
+
+    # UI
     def initUI(self):
 
         # 버튼
         btn1 = QPushButton('로그인', self)
-        btn1.move(560, 285)
+        btn1.move(560, 355)
         btn1.resize(btn1.sizeHint())
         btn1.clicked.connect(self.login_button_event)
 
         btn2 = QPushButton('실행', self)
-        btn2.move(635, 285)
+        btn2.move(635, 355)
         btn2.resize(btn2.sizeHint())
         btn2.clicked.connect(self.play_button_event)
 
-
         btn3 = QPushButton('종료', self)
-        btn3.move(560, 310)
+        btn3.move(560, 380)
         btn3.resize(150, 25)
         btn3.clicked.connect(QCoreApplication.instance().quit)
 
@@ -278,9 +304,12 @@ class MyApp(QWidget):
         self.PERFORMANCE.setText("1.5")
         self.PERFORMANCE.move(560, 260)
 
+        self.KEY = QLineEdit(self)
+        self.KEY.move(560, 300)
+
         # 라벨
         self.label2 = QLabel(self)
-        self.label2.move(600, 10)
+        self.label2.move(600, 15)
         self.label2.setText("로그인")
         self.label2.setFont(QFont("D2Coding", 18, QFont.Black))
 
@@ -314,6 +343,11 @@ class MyApp(QWidget):
         self.label8.setText("대기시간설정(1~3)")
         self.label8.setFont(QFont("D2Coding", 10, QFont.Black))
 
+        self.label9 = QLabel(self)
+        self.label9.move(560, 285)
+        self.label9.setText("이번주 KEY 입력")
+        self.label9.setFont(QFont("D2Coding", 10, QFont.Black))
+
         # 하단 텍스트
         t1, t2 = load_text()
         self.label9 = QLabel(self)
@@ -326,11 +360,21 @@ class MyApp(QWidget):
         self.label10.setText(t2)
         self.label10.setFont(QFont("D2Coding", 10, QFont.Medium))
 
+        # 체크박스
+        self.cb = QCheckBox('음소거', self)
+        self.cb.move(565, 330)
+        self.cb.toggle()
+        self.cb.stateChanged.connect(self.changeTitle)
+
+        self.cb1 = QCheckBox('시크릿 모드', self)
+        self.cb1.move(625, 330)
+        self.cb1.toggle()
+        self.cb1.stateChanged.connect(self.changeTitle)
+
         # 콘솔창 출력
         self.txt = QTextBrowser(self)
         self.txt.resize(550, 380)
         self.show()
-
 
     # 화면 중앙으로 키기
     def center(self):
@@ -339,21 +383,27 @@ class MyApp(QWidget):
         qr.moveCenter(cp)
         self.move(qr.topLeft())
 
-    # 텍스트콘솔추가
-    #def textedit(self, consol):
-    #    self.text.append(consol)
-
-
     # 로그인버튼이벤트리스너
     def login_button_event(self):
+        KEY = self.KEY.text()
         ID, PW = self.ID.text(), self.PW.text()
-        self.txt.append(ID + "학번으로 로그인 시도")
+        self.txt.append(ID + "학번으로 로그인 시도...")
 
         self.clist, self.hlist = prof_class_list(ID, PW)
 
-        if len(self.clist) <1:
+        # 아이디나 비밀번호 입력확인
+        if len(ID) < 1 or len(PW) < 1:
             self.txt.append(ID + "학번으로 로그인 실패! 아이디를 확인하세요")
-            QMessageBox.about(self, "로그인", "로그인 실패!\n아이디를 확인하세요.")
+            QMessageBox.about(self.ID, "로그인", "로그인 실패!\n아이디와 비밀번호를 입력하세요.")
+        # 아이디 체크
+        elif len(self.clist) < 1:
+            self.txt.append(ID + "학번으로 로그인 실패! 아이디를 확인하세요")
+            QMessageBox.about(self.ID, "로그인", "로그인 실패!\n아이디를 확인하세요.")
+
+        # KEY 체크
+        elif KEY != load_key():
+            QMessageBox.about(self.ID, "KEY", "로그인 실패!\n이번주 KEY를 확인하세요.")
+        # 로그인 성공
         else:
             # 로그인 성공시 강의목록띄우기
             self.txt.append("")
@@ -363,15 +413,16 @@ class MyApp(QWidget):
             self.txt.append("================================")
             self.txt.append("")
             QMessageBox.about(self, "로그인", "로그인 성공!")
-
     # 실행버튼이벤트리스너
     def play_button_event(self):
-        learn_class(self.ID.text(), self.PW.text(), self.WEEK.text(), int(self.CLASS.text()), int(self.VIDEO.text()), float(self.PERFORMANCE.text()), self.hlist, self.txt)
+        learn_class(self.ID.text(), self.PW.text(), self.WEEK.text(), int(self.CLASS.text()), int(self.VIDEO.text()), float(self.PERFORMANCE.text()), self.hlist, self.txt, self.cb.isChecked(), self.cb1.isChecked())
 
-    # 콘솔창 입력
-    def append_text(self):
-        self.txt.append("")
-
+    # 체크박스 이벤트 리스너
+    def changeTitle(self, state):
+        if state == Qt.Checked:
+            return True
+        else:
+            return False
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
